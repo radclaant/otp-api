@@ -151,6 +151,7 @@ def get_logs():
     return jsonify({'logs': data.get('logs', [])})
 
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
     print("\n" + "="*60)
     print("🔐 SERVIDOR API OTP INICIADO")
     print("="*60)
@@ -163,7 +164,10 @@ if __name__ == '__main__':
     print("\n💡 Panel Web: Actualiza la URL de la API en el código")
     print("💡 App Tkinter: Actualiza API_URL = 'http://TU_IP:5000'")
     print("\n" + "="*60 + "\n")
+    # En Render no uses debug=True en producción
+    app.run(host='0.0.0.0', port=port)
     
     # Iniciar servidor
     # Para acceso desde toda tu red local, usa host='0.0.0.0'
+
     app.run(host='0.0.0.0', port=5000, debug=True)
