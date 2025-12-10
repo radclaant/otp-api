@@ -8,7 +8,6 @@ const OTPControlPanel = () => {
   const [activeTab, setActiveTab] = useState('devices');
   const [loading, setLoading] = useState(false);
 
-  // URL de la API - usa la URL de Render
   const API_URL = 'https://otp-api-kf7h.onrender.com/api';
   
   useEffect(() => {
@@ -19,188 +18,113 @@ const OTPControlPanel = () => {
 
   const loadData = async () => {
     try {
-      const response = await fetch(`${API_URL}/devices`);
-      const data = await response.json();
+      const res = await fetch(`${API_URL}/devices`);
+      const data = await res.json();
       setDevices(data.devices || []);
       setAccessLogs(data.logs || []);
-    } catch (error) {
-      console.error('Error conectando con API:', error);
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  const generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  };
+  const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
   const addDevice = async () => {
-    if (!newDevice.name.trim()) {
-      alert('Por favor ingresa el nombre del dispositivo');
-      return;
-    }
-
+    if (!newDevice.name.trim()) return alert('Ingresa nombre de dispositivo');
     setLoading(true);
     const otp = generateOTP();
-    const device = {
-      name: newDevice.name.trim(),
-      otp: otp,
-      enabled: true
-    };
-
+    const device = { name: newDevice.name.trim(), otp, enabled: true };
     try {
-      const response = await fetch(`${API_URL}/devices`, {
+      const res = await fetch(`${API_URL}/devices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(device)
       });
-      
-      if (response.ok) {
+      if (res.ok) {
         await loadData();
         setNewDevice({ name: '', otp: '' });
-        alert(`✅ Dispositivo agregado exitosamente!\n\nNombre: ${device.name}\nOTP: ${otp}\n\n⚠️ Guarda este código, lo necesitarás para autenticarte.`);
+        alert(`✅ Dispositivo agregado: ${device.name}\nOTP: ${otp}`);
       }
-    } catch (error) {
-      console.error('Error agregando dispositivo:', error);
-      alert('❌ Error conectando con el servidor. Verifica que el servidor esté activo.');
+    } catch (e) {
+      console.error(e);
+      alert('❌ Error agregando dispositivo');
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleDevice = async (deviceId) => {
-    const device = devices.find(d => d.id === deviceId);
-    
+  const toggleDevice = async (id) => {
+    const device = devices.find(d => d.id === id);
     try {
-      const response = await fetch(`${API_URL}/devices/${deviceId}`, {
+      const res = await fetch(`${API_URL}/devices/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: !device.enabled })
       });
-      
-      if (response.ok) {
-        await loadData();
-        alert(`✅ Dispositivo ${!device.enabled ? 'activado' : 'bloqueado'} correctamente`);
-      }
-    } catch (error) {
-      console.error('Error actualizando dispositivo:', error);
-      alert('❌ Error al actualizar dispositivo');
-    }
+      if (res.ok) await loadData();
+    } catch (e) { console.error(e); }
   };
 
-  const regenerateOTP = async (deviceId) => {
-    const newOTP = generateOTP();
-    
+  const deleteDevice = async (id) => {
+    if (!window.confirm('⚠️ Eliminar dispositivo?')) return;
     try {
-      const response = await fetch(`${API_URL}/devices/${deviceId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ otp: newOTP })
-      });
-      
-      if (response.ok) {
-        await loadData();
-        alert(`✅ Nuevo OTP generado: ${newOTP}\n\n⚠️ El código anterior ya no funcionará. Actualiza tu aplicación con este nuevo código.`);
-      }
-    } catch (error) {
-      console.error('Error regenerando OTP:', error);
-      alert('❌ Error al generar nuevo OTP');
-    }
+      const res = await fetch(`${API_URL}/devices/${id}`, { method: 'DELETE' });
+      if (res.ok) await loadData();
+    } catch (e) { console.error(e); }
   };
 
-  const deleteDevice = async (deviceId) => {
-    if (!confirm('⚠️ ¿Estás seguro de eliminar este dispositivo?\n\nEsta acción no se puede deshacer y el dispositivo perderá acceso permanentemente.')) return;
-    
-    try {
-      const response = await fetch(`${API_URL}/devices/${deviceId}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        await loadData();
-        alert('✅ Dispositivo eliminado correctamente');
-      }
-    } catch (error) {
-      console.error('Error eliminando dispositivo:', error);
-      alert('❌ Error al eliminar dispositivo');
-    }
-  };
-
-  const formatDate = (isoString) => {
-    if (!isoString) return 'Nunca';
-    const date = new Date(isoString);
-    return date.toLocaleString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  const formatDate = (iso) => iso ? new Date(iso).toLocaleString('es-ES') : 'Nunca';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900 p-6">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6 border border-white/20">
-          <div className="flex items-center gap-4">
-            <div className="bg-gradient-to-br from-purple-500 to-pink-500 p-3 rounded-xl">
-              <Shield className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white">Sistema OTP - Control Remoto</h1>
-              <p className="text-purple-200">Gestiona el acceso a tus aplicaciones desde cualquier lugar</p>
-            </div>
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6 border border-white/20 flex items-center gap-4">
+          <div className="bg-gradient-to-br from-pink-500 to-purple-500 p-3 rounded-xl">
+            <Shield className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-white">Sistema OTP - Control Remoto</h1>
+            <p className="text-purple-200">Gestiona el acceso desde cualquier lugar</p>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-4 mb-6">
-          <button
-            onClick={() => setActiveTab('devices')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
-              activeTab === 'devices'
-                ? 'bg-white text-purple-900 shadow-lg'
-                : 'bg-white/10 text-white hover:bg-white/20'
-            }`}
-          >
-            <Monitor className="w-5 h-5" />
-            Dispositivos
-          </button>
-          <button
-            onClick={() => setActiveTab('logs')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
-              activeTab === 'logs'
-                ? 'bg-white text-purple-900 shadow-lg'
-                : 'bg-white/10 text-white hover:bg-white/20'
-            }`}
-          >
-            <Clock className="w-5 h-5" />
-            Registro
-          </button>
+          {['devices', 'logs'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
+                activeTab === tab
+                  ? 'bg-white text-purple-900 shadow-lg'
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              {tab === 'devices' ? <Monitor className="w-5 h-5 inline mr-2"/> : <Clock className="w-5 h-5 inline mr-2"/>}
+              {tab === 'devices' ? 'Dispositivos' : 'Registro'}
+            </button>
+          ))}
         </div>
 
         {/* Content */}
         {activeTab === 'devices' && (
           <div className="space-y-6">
-            {/* Agregar Nuevo Dispositivo */}
+            {/* Nuevo Dispositivo */}
             <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-              <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                <Key className="w-6 h-6" />
-                Agregar Nuevo Dispositivo
-              </h2>
+              <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2"><Key className="w-6 h-6"/> Agregar Dispositivo</h2>
               <div className="flex gap-4">
                 <input
                   type="text"
-                  placeholder="Nombre del PC (ej: ASC-RAD-PC1, LAPTOP-OFICINA)"
+                  placeholder="Nombre del PC"
                   value={newDevice.name}
-                  onChange={(e) => setNewDevice({ ...newDevice, name: e.target.value })}
+                  onChange={e => setNewDevice({ ...newDevice, name: e.target.value })}
                   className="flex-1 px-4 py-3 rounded-xl bg-white/20 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  onKeyPress={(e) => e.key === 'Enter' && addDevice()}
-                  disabled={loading}
                 />
                 <button
                   onClick={addDevice}
                   disabled={loading}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50"
                 >
                   {loading ? '⏳ Generando...' : 'Generar OTP'}
                 </button>
@@ -211,139 +135,67 @@ const OTPControlPanel = () => {
             <div className="grid gap-4">
               {devices.length === 0 ? (
                 <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-12 border border-white/10 text-center">
-                  <AlertCircle className="w-16 h-16 text-white/30 mx-auto mb-4" />
-                  <p className="text-white/50 text-lg">No hay dispositivos registrados</p>
-                  <p className="text-white/30 text-sm mt-2">Agrega tu primer dispositivo para comenzar</p>
+                  <AlertCircle className="w-16 h-16 text-white/30 mx-auto mb-4"/>
+                  <p className="text-white/50 text-lg">No hay dispositivos</p>
+                  <p className="text-white/30 text-sm mt-2">Agrega tu primer dispositivo para empezar</p>
                 </div>
-              ) : (
-                devices.map(device => (
-                  <div
-                    key={device.id}
-                    className={`bg-white/10 backdrop-blur-lg rounded-2xl p-6 border transition-all ${
-                      device.enabled
-                        ? 'border-green-400/50 shadow-lg shadow-green-500/20'
-                        : 'border-red-400/50 opacity-75'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <Monitor className="w-6 h-6 text-white" />
-                          <h3 className="text-xl font-bold text-white">{device.name}</h3>
-                          {device.enabled ? (
-                            <span className="px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-sm font-semibold flex items-center gap-1">
-                              <Check className="w-4 h-4" />
-                              Activo
-                            </span>
-                          ) : (
-                            <span className="px-3 py-1 bg-red-500/20 text-red-300 rounded-full text-sm font-semibold flex items-center gap-1">
-                              <X className="w-4 h-4" />
-                              Bloqueado
-                            </span>
-                          )}
-                        </div>
-                        
-                        <div className="space-y-2 mt-4">
-                          <div className="flex items-center gap-2">
-                            <span className="text-white/50 text-sm">OTP Actual:</span>
-                            <code className="px-4 py-2 bg-black/30 text-green-300 font-mono text-lg rounded-lg border border-white/10">
-                              {device.otp}
-                            </code>
-                          </div>
-                          <div className="text-white/50 text-sm">
-                            Creado: {formatDate(device.createdAt)}
-                          </div>
-                          {device.lastUsed && (
-                            <div className="text-white/50 text-sm">
-                              Último uso: {formatDate(device.lastUsed)}
-                            </div>
-                          )}
-                        </div>
+              ) : devices.map(device => (
+                <div key={device.id} className={`bg-white/10 backdrop-blur-lg rounded-2xl p-6 border transition-all ${
+                  device.enabled
+                    ? 'border-green-400/50 shadow-lg shadow-green-500/20'
+                    : 'border-red-400/50 opacity-75'
+                }`}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <Monitor className="w-6 h-6 text-white"/>
+                        <h3 className="text-xl font-bold text-white">{device.name}</h3>
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1 ${
+                          device.enabled ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
+                        }`}>
+                          {device.enabled ? <Check className="w-4 h-4"/> : <X className="w-4 h-4"/>}
+                          {device.enabled ? 'Activo' : 'Bloqueado'}
+                        </span>
                       </div>
-
-                      <div className="flex flex-col gap-2 ml-4">
-                        <button
-                          onClick={() => toggleDevice(device.id)}
-                          className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                            device.enabled
-                              ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
-                              : 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
-                          }`}
-                        >
-                          {device.enabled ? 'Bloquear' : 'Activar'}
-                        </button>
-                        <button
-                          onClick={() => regenerateOTP(device.id)}
-                          className="px-4 py-2 bg-purple-500/20 text-purple-300 rounded-lg font-semibold hover:bg-purple-500/30 transition-all"
-                        >
-                          Nuevo OTP
-                        </button>
-                        <button
-                          onClick={() => deleteDevice(device.id)}
-                          className="px-4 py-2 bg-white/10 text-white/50 rounded-lg font-semibold hover:bg-white/20 transition-all"
-                        >
-                          Eliminar
-                        </button>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white/50 text-sm">OTP:</span>
+                          <code className="px-4 py-2 bg-black/30 text-green-300 font-mono text-lg rounded-lg border border-white/10">{device.otp}</code>
+                        </div>
+                        <div className="text-white/50 text-sm">Creado: {formatDate(device.createdAt)}</div>
+                        {device.lastUsed && <div className="text-white/50 text-sm">Último uso: {formatDate(device.lastUsed)}</div>}
                       </div>
                     </div>
+                    <div className="flex flex-col gap-2 ml-4">
+                      <button onClick={() => toggleDevice(device.id)} className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                        device.enabled ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30' : 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
+                      }`}>{device.enabled ? 'Bloquear' : 'Activar'}</button>
+                      <button onClick={() => deleteDevice(device.id)} className="px-4 py-2 bg-white/10 text-white/50 rounded-lg font-semibold hover:bg-white/20 transition-all">Eliminar</button>
+                    </div>
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
           </div>
         )}
 
         {activeTab === 'logs' && (
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-              <Clock className="w-6 h-6" />
-              Registro de Actividad
-            </h2>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {accessLogs.length === 0 ? (
-                <p className="text-white/50 text-center py-8">No hay registros aún</p>
-              ) : (
-                accessLogs.map((log, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10"
-                  >
-                    <div>
-                      <span className="text-white font-semibold">{log.device}</span>
-                      <span className="text-white/50 mx-2">•</span>
-                      <span className="text-white/70">{log.action}</span>
-                    </div>
-                    <span className="text-white/50 text-sm">{formatDate(log.timestamp)}</span>
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 max-h-96 overflow-y-auto">
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2"><Clock className="w-6 h-6"/> Registro</h2>
+            {accessLogs.length === 0 ? <p className="text-white/50 text-center py-8">No hay registros</p> :
+              accessLogs.map((log, i) => (
+                <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10 mb-2">
+                  <div>
+                    <span className="text-white font-semibold">{log.device}</span>
+                    <span className="text-white/50 mx-2">•</span>
+                    <span className="text-white/70">{log.action}</span>
                   </div>
-                ))
-              )}
-            </div>
+                  <span className="text-white/50 text-sm">{formatDate(log.timestamp)}</span>
+                </div>
+              ))
+            }
           </div>
         )}
-
-        {/* Info */}
-        <div className="bg-blue-500/10 backdrop-blur-lg rounded-2xl p-6 border border-blue-400/30 mt-6">
-          <h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-blue-300" />
-            Estado del Sistema
-          </h3>
-          <div className="text-white/70 space-y-2">
-            <p>✅ <strong>Servidor API:</strong> <code className="bg-black/30 px-2 py-1 rounded text-green-300">https://otp-api-kf7h.onrender.com</code></p>
-            <p>🔄 <strong>Actualización automática:</strong> Cada 5 segundos</p>
-            <p>🌐 <strong>Acceso:</strong> Disponible desde cualquier dispositivo con internet</p>
-            <p>🔒 <strong>Control remoto:</strong> Bloquea/desbloquea dispositivos en tiempo real</p>
-          </div>
-          
-          <div className="mt-4 p-4 bg-purple-500/10 rounded-lg border border-purple-400/30">
-            <p className="text-white font-semibold mb-2">📱 Cómo usar:</p>
-            <ol className="text-white/70 text-sm space-y-1 ml-4 list-decimal">
-              <li>Agrega un dispositivo con el nombre exacto de tu PC</li>
-              <li>Copia el OTP de 6 dígitos generado</li>
-              <li>Úsalo en tu aplicación Python para autenticarte</li>
-              <li>Gestiona accesos desde este panel en cualquier momento</li>
-            </ol>
-          </div>
-        </div>
       </div>
     </div>
   );
