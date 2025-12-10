@@ -107,7 +107,7 @@ const OTPControlPanel = () => {
   };
 
   const deleteDevice = async (deviceId) => {
-    if (!window.confirm('⚠️ ¿Estás seguro de eliminar este dispositivo?')) return;
+    if (!confirm('⚠️ ¿Estás seguro de eliminar este dispositivo?\n\nEsta acción no se puede deshacer y el dispositivo perderá acceso permanentemente.')) return;
     
     try {
       const response = await fetch(`${API_URL}/devices/${deviceId}`, {
