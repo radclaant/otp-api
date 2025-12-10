@@ -36,3 +36,18 @@
     transform: rotate(360deg);
   }
 }
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.login-form {
+  text-align: center;
+  border: 1px solid #ccc;
+  padding: 2rem;
+  border-radius: 8px;
+  background: #f9f9f9;
+}
+
