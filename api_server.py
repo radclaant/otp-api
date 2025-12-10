@@ -1,16 +1,6 @@
 """
-Servidor API Local para Sistema OTP
-100% Gratuito - Corre en tu red local
-No requiere servicios externos ni pagos
-
-Instalación:
-pip install flask flask-cors
-
-Uso:
-python api_server.py
-
-El servidor correrá en http://localhost:5000
-Para acceso remoto, usa tu IP local (ej: http://192.168.1.100:5000)
+Servidor API para Sistema OTP - Version Render
+Desplegado en: https://otp-api-kf7h.onrender.com
 """
 
 from flask import Flask, request, jsonify
@@ -20,7 +10,7 @@ import os
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)  # Permitir acceso desde cualquier origen
+CORS(app)
 
 # Archivo de almacenamiento
 STORAGE_FILE = 'otp_storage.json'
@@ -41,9 +31,23 @@ def save_data(data):
     with open(STORAGE_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
+@app.route('/')
+def home():
+    """Ruta principal"""
+    return jsonify({
+        'message': 'API OTP Server',
+        'status': 'online',
+        'endpoints': {
+            'health': '/api/health',
+            'devices': '/api/devices',
+            'validate': '/api/validate',
+            'logs': '/api/logs'
+        }
+    })
+
 @app.route('/api/health', methods=['GET'])
 def health():
-    """Verificar que el servidor está funcionando"""
+    """Verificar que el servidor esta funcionando"""
     return jsonify({'status': 'ok', 'message': 'Servidor OTP activo'})
 
 @app.route('/api/devices', methods=['GET'])
@@ -58,7 +62,6 @@ def add_device():
     device = request.json
     data = load_data()
     
-    # Generar ID único
     device['id'] = str(int(datetime.now().timestamp() * 1000))
     device['createdAt'] = datetime.now().isoformat()
     device['lastUsed'] = None
@@ -101,16 +104,13 @@ def validate_otp():
     
     data = load_data()
     
-    # Buscar dispositivo
     for device in data['devices']:
         if (device.get('name') == pc_name and 
             device.get('otp') == otp and 
             device.get('enabled', False)):
             
-            # Actualizar último uso
             device['lastUsed'] = datetime.now().isoformat()
             
-            # Agregar log
             log = {
                 'timestamp': datetime.now().isoformat(),
                 'action': 'Acceso Exitoso',
@@ -118,17 +118,16 @@ def validate_otp():
                 'type': 'login'
             }
             data['logs'].insert(0, log)
-            data['logs'] = data['logs'][:50]  # Mantener últimos 50
+            data['logs'] = data['logs'][:50]
             
             save_data(data)
             
             return jsonify({
                 'valid': True,
                 'device_id': device['id'],
-                'message': 'Autenticación exitosa'
+                'message': 'Autenticacion exitosa'
             })
     
-    # Registrar intento fallido
     log = {
         'timestamp': datetime.now().isoformat(),
         'action': 'Intento Fallido',
@@ -141,7 +140,7 @@ def validate_otp():
     
     return jsonify({
         'valid': False,
-        'message': 'OTP inválido o dispositivo no autorizado'
+        'message': 'OTP invalido o dispositivo no autorizado'
     }), 401
 
 @app.route('/api/logs', methods=['GET'])
@@ -152,8 +151,4 @@ def get_logs():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
-
-
-
-
+    app.run(host='0.0.0.0', port=port, debug=False)
