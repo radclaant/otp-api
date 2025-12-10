@@ -1,19 +1,23 @@
 """
-Servidor API para Sistema OTP - Version Render con SQLite
+Servidor API para Sistema OTP - Version Render con Supabase
 Desplegado en: https://otp-api-kf7h.onrender.com
 """
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from datetime import datetime
-from bd_nr import add_device_db, get_devices_db, add_log_db, get_logs_db, update_device_db, delete_device_db
+from supabase import create_client, Client
+import os
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
 
+# Configurar Supabase
+SUPABASE_URL = os.environ.get('SUPABASE_URL')
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 @app.route('/')
 def home():
-    """Ruta principal"""
     return jsonify({
         'message': 'API OTP Server',
         'status': 'online',
@@ -27,35 +31,40 @@ def home():
 
 @app.route('/api/health', methods=['GET'])
 def health():
-    """Verificar que el servidor esta funcionando"""
     return jsonify({'status': 'ok', 'message': 'Servidor OTP activo'})
 
 @app.route('/api/devices', methods=['GET'])
 def get_devices():
-    """Obtener todos los dispositivos"""
-    devices = get_devices_db()
-    return jsonify({'devices': devices})
+    """Obtener todos los dispositivos desde Supabase"""
+    response = supabase.table('devices').select('*').execute()
+    return jsonify({'devices': response.data})
 
 @app.route('/api/devices', methods=['POST'])
 def add_device():
     """Agregar nuevo dispositivo"""
     device = request.json
-    device_id = add_device_db(device.get('name'), device.get('otp'), device.get('enabled', True))
-    return jsonify({'id': device_id, **device}), 201
+    device_data = {
+        'name': device.get('name'),
+        'otp': device.get('otp'),
+        'enabled': device.get('enabled', True),
+        'created_at': datetime.now().isoformat()
+    }
+    response = supabase.table('devices').insert(device_data).execute()
+    return jsonify(response.data[0]), 201
 
 @app.route('/api/devices/<device_id>', methods=['PUT'])
 def update_device(device_id):
     """Actualizar dispositivo"""
     updates = request.json
-    success = update_device_db(device_id, updates)
-    if success:
-        return jsonify({'id': device_id, **updates})
+    response = supabase.table('devices').update(updates).eq('id', device_id).execute()
+    if response.data:
+        return jsonify(response.data[0])
     return jsonify({'error': 'Dispositivo no encontrado'}), 404
 
 @app.route('/api/devices/<device_id>', methods=['DELETE'])
 def delete_device(device_id):
     """Eliminar dispositivo"""
-    delete_device_db(device_id)
+    supabase.table('devices').delete().eq('id', device_id).execute()
     return jsonify({'success': True})
 
 @app.route('/api/validate', methods=['POST'])
@@ -64,19 +73,33 @@ def validate_otp():
     req_data = request.json
     pc_name = req_data.get('pc_name')
     otp = req_data.get('otp')
+    
+    response = supabase.table('devices').select('*').eq('name', pc_name).execute()
+    devices = response.data or []
 
-    devices = get_devices_db()
     for device in devices:
-        if device['name'] == pc_name and device['otp'] == otp and device['enabled']:
-            # Registrar uso
-            add_log_db(pc_name, 'Acceso Exitoso', 'login')
+        if device['otp'] == otp and device['enabled']:
+            # Registrar log
+            supabase.table('logs').insert({
+                'device': pc_name,
+                'action': 'Acceso Exitoso',
+                'type': 'login',
+                'timestamp': datetime.now().isoformat()
+            }).execute()
             return jsonify({
                 'valid': True,
                 'device_id': device['id'],
                 'message': 'Autenticacion exitosa'
             })
 
-    add_log_db(pc_name, 'Intento Fallido', 'failed_login')
+    # Log de intento fallido
+    supabase.table('logs').insert({
+        'device': pc_name,
+        'action': 'Intento Fallido',
+        'type': 'failed_login',
+        'timestamp': datetime.now().isoformat()
+    }).execute()
+
     return jsonify({
         'valid': False,
         'message': 'OTP invalido o dispositivo no autorizado'
@@ -84,11 +107,10 @@ def validate_otp():
 
 @app.route('/api/logs', methods=['GET'])
 def get_logs():
-    """Obtener logs de acceso"""
-    logs = get_logs_db()
-    return jsonify({'logs': logs})
+    """Obtener logs desde Supabase"""
+    response = supabase.table('logs').select('*').order('timestamp', desc=True).limit(50).execute()
+    return jsonify({'logs': response.data})
 
 if __name__ == '__main__':
-    import os
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
