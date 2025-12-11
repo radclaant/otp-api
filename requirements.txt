@@ -1,6 +1,6 @@
-flask
+Flask
 flask-cors
-gunicorn
-psycopg2-binary
 supabase
-supabase-py
+python-dotenv
+psycopg2-binary
+gunicorn
