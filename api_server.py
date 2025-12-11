@@ -191,7 +191,7 @@ def validate_otp():
                 supabase.table('logs').insert({
                     'device_name': pc_name,
                     'ip_address': ip_address,
-                    'action': 'Intento Fallido',
+                    'action': 'Acceso exitoso',
                     'log_type': 'failed_login'
                 }).execute()
             except Exception as log_error:
@@ -248,4 +248,5 @@ def get_logs():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
