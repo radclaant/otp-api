@@ -145,6 +145,8 @@ def delete_device(device_id):
 @app.route('/api/validate', methods=['POST'])
 def validate_otp():
     """Validar OTP enviado por la app de escritorio"""
+    # Obtener IP real del cliente
+    ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
     try:
         req = request.json or {}
 
@@ -168,6 +170,7 @@ def validate_otp():
             try:
                 supabase.table('logs').insert({
                     'device_name': pc_name,
+                    'ip_address': ip_address,
                     'action': 'Intento Fallido',
                     'log_type': 'failed_login'
                 }).execute()
@@ -187,8 +190,9 @@ def validate_otp():
             try:
                 supabase.table('logs').insert({
                     'device_name': pc_name,
-                    'action': 'Acceso Exitoso',
-                    'log_type': 'login'
+                    'ip_address': ip_address,
+                    'action': 'Intento Fallido',
+                    'log_type': 'failed_login'
                 }).execute()
             except Exception as log_error:
                 print(f"Error al registrar log: {log_error}")
@@ -205,6 +209,7 @@ def validate_otp():
         try:
             supabase.table('logs').insert({
                 'device_name': pc_name,
+                'ip_address': ip_address,
                 'action': 'Intento Fallido',
                 'log_type': 'failed_login'
             }).execute()
@@ -243,3 +248,4 @@ def get_logs():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
