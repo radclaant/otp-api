@@ -47,9 +47,27 @@ def health():
 
 @app.route('/api/devices', methods=['GET'])
 def get_devices():
-    """Obtener todos los dispositivos desde Supabase"""
-    response = supabase.table('devices').select('*').order('id').execute()
+    """Obtener todos los dispositivos o uno filtrado por name"""
+    
+    name = request.args.get("name")
+
+    query = supabase.table('devices').select('*')
+
+    if name:
+        query = query.eq("name", name)
+
+    response = query.order('created_at', desc=False).execute()
+
+    # Si pidió un nombre específico, devolver solo 1 device
+    if name:
+        devices = response.data or []
+        if len(devices) == 0:
+            return jsonify({'error': 'Device not found'}), 404
+        return jsonify(devices[0])
+
+    # Si no pidió un nombre, devolver lista completa
     return jsonify({'devices': response.data})
+
 
 
 @app.route('/api/devices', methods=['POST'])
@@ -170,3 +188,4 @@ def get_logs():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
