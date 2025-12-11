@@ -81,6 +81,7 @@ def get_devices():
 @app.route('/api/devices', methods=['POST'])
 def add_device():
     """Agregar nuevo dispositivo"""
+    ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
     try:
         device = request.json or {}
 
@@ -88,6 +89,7 @@ def add_device():
             'name': device.get('name'),
             'otp': device.get('otp'),
             'enabled': device.get('enabled', True),
+            'ip_address': ip_address, 
             'created_at': datetime.now().isoformat()
         }
 
@@ -248,5 +250,6 @@ def get_logs():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
