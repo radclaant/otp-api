@@ -163,13 +163,17 @@ def validate_otp():
         print(f"Dispositivos encontrados: {len(device_list)}")
 
         if not device_list:
-            # Registrar intento fallido
-            supabase.table('logs').insert({
-                'device': pc_name,
-                'action': 'Intento Fallido',
-                'type': 'failed_login',
-                'timestamp': datetime.now().isoformat()
-            }).execute()
+            print(f"Dispositivo no encontrado: {pc_name}")
+            # Registrar intento fallido (temporalmente deshabilitado)
+            # try:
+            #     supabase.table('logs').insert({
+            #         'device_name': pc_name,
+            #         'action': 'Intento Fallido',
+            #         'log_type': 'failed_login',
+            #         'created_at': datetime.now().isoformat()
+            #     }).execute()
+            # except Exception as log_error:
+            #     print(f"Error al registrar log: {log_error}")
 
             return jsonify({'valid': False, 'message': 'Dispositivo no registrado'}), 401
 
@@ -178,13 +182,18 @@ def validate_otp():
 
         # Validar OTP (convertir ambos a string para comparación)
         if str(device.get('otp')) == str(otp) and device.get('enabled'):
-
-            supabase.table('logs').insert({
-                'device': pc_name,
-                'action': 'Acceso Exitoso',
-                'type': 'login',
-                'timestamp': datetime.now().isoformat()
-            }).execute()
+            print(f"✓ Autenticación exitosa para {pc_name}")
+            
+            # Registrar acceso exitoso (temporalmente deshabilitado)
+            # try:
+            #     supabase.table('logs').insert({
+            #         'device_name': pc_name,
+            #         'action': 'Acceso Exitoso',
+            #         'log_type': 'login',
+            #         'created_at': datetime.now().isoformat()
+            #     }).execute()
+            # except Exception as log_error:
+            #     print(f"Error al registrar log: {log_error}")
 
             return jsonify({
                 'valid': True,
@@ -192,13 +201,18 @@ def validate_otp():
                 'message': 'Autenticación exitosa'
             })
 
-        # Registrar intento fallido
-        supabase.table('logs').insert({
-            'device': pc_name,
-            'action': 'Intento Fallido',
-            'type': 'failed_login',
-            'timestamp': datetime.now().isoformat()
-        }).execute()
+        print(f"✗ OTP inválido o dispositivo deshabilitado para {pc_name}")
+        
+        # Registrar intento fallido (temporalmente deshabilitado)
+        # try:
+        #     supabase.table('logs').insert({
+        #         'device_name': pc_name,
+        #         'action': 'Intento Fallido',
+        #         'log_type': 'failed_login',
+        #         'created_at': datetime.now().isoformat()
+        #     }).execute()
+        # except Exception as log_error:
+        #     print(f"Error al registrar log: {log_error}")
 
         return jsonify({'valid': False, 'message': 'OTP inválido o dispositivo deshabilitado'}), 401
 
@@ -216,7 +230,7 @@ def validate_otp():
 def get_logs():
     """Obtener logs desde Supabase"""
     try:
-        response = supabase.table('logs').select('*').order('timestamp', desc=True).limit(100).execute()
+        response = supabase.table('logs').select('*').order('created_at', desc=True).limit(100).execute()
         return jsonify({'logs': response.data})
     
     except Exception as e:
