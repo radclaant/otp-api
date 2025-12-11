@@ -169,8 +169,7 @@ def validate_otp():
                 supabase.table('logs').insert({
                     'device_name': pc_name,
                     'action': 'Intento Fallido',
-                    'log_type': 'failed_login',
-                    'created_at': datetime.now().isoformat()
+                    'log_type': 'failed_login'
                 }).execute()
             except Exception as log_error:
                 print(f"Error al registrar log: {log_error}")
@@ -189,8 +188,7 @@ def validate_otp():
                 supabase.table('logs').insert({
                     'device_name': pc_name,
                     'action': 'Acceso Exitoso',
-                    'log_type': 'login',
-                    'created_at': datetime.now().isoformat()
+                    'log_type': 'login'
                 }).execute()
             except Exception as log_error:
                 print(f"Error al registrar log: {log_error}")
@@ -208,8 +206,7 @@ def validate_otp():
             supabase.table('logs').insert({
                 'device_name': pc_name,
                 'action': 'Intento Fallido',
-                'log_type': 'failed_login',
-                'created_at': datetime.now().isoformat()
+                'log_type': 'failed_login'
             }).execute()
         except Exception as log_error:
             print(f"Error al registrar log: {log_error}")
