@@ -109,14 +109,21 @@ def create_user():
 # Obtener QR del usuario
 # -------------------------------------------------------------
 
-@app.route('/api/users/<user_id>/qr', methods=['GET'])
-def get_user_qr(user_id):
+@app.route("/api/users", methods=["GET"])
+def get_users():
     try:
-        qr_dir = os.path.join(app.root_path, "static/qrs")
-        return send_from_directory(qr_dir, f"{user_id}.png")
+        response = supabase.table("users").select("*").execute()
+
+        return jsonify({
+            "users": response.data,
+            "message": "Usuarios cargados"
+        }), 200
+
     except Exception as e:
-        traceback.print_exc()
-        return jsonify({'error': 'QR no encontrado'}), 404
+        return jsonify({
+            "error": str(e),
+            "message": "Error consultando usuarios"
+        }), 500
 
 
 # -------------------------------------------------------------
@@ -209,3 +216,4 @@ def get_devices():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
