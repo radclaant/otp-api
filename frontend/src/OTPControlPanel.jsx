@@ -34,6 +34,36 @@ const OTPControlPanel = () => {
     }
   };
 
+    const regenerateTOTP = async (userId) => {
+    try {
+      setLoading(true);
+  
+      const res = await fetch(`${API_URL}/users/regenerar-totp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId })
+      });
+  
+      const data = await res.json();
+  
+      if (data.qr_image) {
+        // Actualizar usuario en la lista local sin recargar todo
+        setUsers(prev =>
+          prev.map(u =>
+            u.user_id === userId
+              ? { ...u, totp_qr: data.qr_image, totp_secret: data.totp_secret }
+              : u
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Error regenerando TOTP:", err);
+      alert("No se pudo regenerar el código OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadUsers = async () => {
     try {
       const res = await fetch(`${API_URL}/users`);
@@ -249,7 +279,39 @@ const OTPControlPanel = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {users.map(u => (
-                  <div key={u.id} className="bg-white/10 p-4 rounded-xl border border-white/20">
+  <div key={u.id} className="bg-white/10 p-4 rounded-xl border border-white/20">
+
+    <h3 className="text-xl text-white font-bold">{u.full_name}</h3>
+    <p className="text-purple-200">Usuario: {u.user_id}</p>
+    <p className="text-purple-200">Cédula: {u.cedula}</p>
+    <p className="text-purple-200">Correo: {u.email}</p>
+
+    {/* Semilla actual */}
+    {u.totp_secret && (
+      <p className="text-green-300 font-mono mt-2">
+        Semilla actual: {u.totp_secret}
+      </p>
+    )}
+
+    {/* Mostrar QR */}
+    {u.totp_qr && (
+      <img
+        src={`data:image/png;base64,${u.totp_qr}`}
+        alt="QR Code"
+        className="mt-4 w-40 h-40 border border-white/20 rounded-xl"
+      />
+    )}
+
+    {/* Botón regenerar */}
+    <button
+      onClick={() => regenerateTOTP(u.user_id)}
+      className="mt-4 px-4 py-2 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition"
+    >
+      Generar nueva semilla OTP
+    </button>
+  </div>
+))}
+
                     <h3 className="text-xl text-white font-bold">{u.full_name}</h3>
                     <p className="text-purple-200">Usuario: {u.user_id}</p>
                     <p className="text-purple-200">Cédula: {u.cedula}</p>
@@ -275,3 +337,4 @@ const OTPControlPanel = () => {
 };
 
 export default OTPControlPanel;
+
