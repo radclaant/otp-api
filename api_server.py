@@ -1,19 +1,22 @@
 """
-Servidor API para Sistema OTP - Version Render con Supabase
-Desplegado en: https://otp-api-kf7h.onrender.com
+Servidor API para Sistema OTP - Versión TOTP Google Authenticator
+Desplegado en Render
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from datetime import datetime
 from supabase import create_client, Client
 import os
 import traceback
+import pyotp
+import qrcode
+import qrcode.image.svg
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
 
-# Configurar Supabase
+# Cargar Supabase
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 
@@ -24,206 +27,152 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 # -------------------------------------------------------------
-# RUTAS BÁSICAS
+# HOME
 # -------------------------------------------------------------
 
 @app.route('/')
 def home():
     return jsonify({
-        'message': 'API OTP Server',
+        'message': 'API OTP Server con TOTP',
         'status': 'online',
         'endpoints': {
-            'health': '/api/health',
+            'users': '/api/users',
+            'validate_totp': '/api/validate_totp',
             'devices': '/api/devices',
-            'validate': '/api/validate',
             'logs': '/api/logs'
         }
     })
 
 
-@app.route('/api/health', methods=['GET'])
-def health():
-    return jsonify({'status': 'ok', 'message': 'Servidor OTP activo'})
-
-
 # -------------------------------------------------------------
-# DEVICES
+# CREAR USUARIO TOTP
 # -------------------------------------------------------------
 
-@app.route('/api/devices', methods=['GET'])
-def get_devices():
-    """Obtener todos los dispositivos o uno filtrado por name"""
+@app.route('/api/users', methods=['POST'])
+def create_user():
+    """
+    Crear nuevo usuario con TOTP.
+    """
     try:
-        name = request.args.get("name")
-        query = supabase.table('devices').select('*')
+        data = request.json or {}
 
-        if name:
-            query = query.eq("name", name)
+        user_id = data.get("user_id")
+        full_name = data.get("full_name")
+        email = data.get("email")
+        cedula = data.get("cedula")
 
-        response = query.order('created_at', desc=False).execute()
+        if not user_id or not full_name or not email or not cedula:
+            return jsonify({'error': 'Faltan datos obligatorios'}), 400
 
-        # Si pidió un nombre específico, devolver solo 1 device
-        if name:
-            devices = response.data or []
-            if len(devices) == 0:
-                return jsonify({'error': 'Device not found'}), 404
-            return jsonify(devices[0])
+        # Generar secreto TOTP Base32
+        totp_secret = pyotp.random_base32()
 
-        # Si no pidió un nombre, devolver lista completa
-        return jsonify({'devices': response.data})
-    
-    except Exception as e:
-        print(f"Error en get_devices: {str(e)}")
-        traceback.print_exc()
-        return jsonify({'error': 'Error al obtener dispositivos', 'details': str(e)}), 500
-
-
-@app.route('/api/devices', methods=['POST'])
-def add_device():
-    """Agregar nuevo dispositivo"""
-    ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
-    try:
-        device = request.json or {}
-
-        device_data = {
-            'name': device.get('name'),
-            'otp': device.get('otp'),
-            'enabled': device.get('enabled', True),
-            'ip_address': ip_address, 
-            'created_at': datetime.now().isoformat()
+        user_data = {
+            "user_id": user_id,
+            "full_name": full_name,
+            "email": email,
+            "cedula": cedula,
+            "totp_secret": totp_secret,
+            "created_at": datetime.now().isoformat()
         }
 
-        response = supabase.table('devices').insert(device_data).execute()
+        response = supabase.table('users').insert(user_data).execute()
 
         if not response.data:
-            return jsonify({'error': 'No se pudo insertar en Supabase'}), 500
+            return jsonify({'error': 'No se pudo insertar usuario'}), 500
 
-        return jsonify(response.data[0]), 201
-    
+        # Crear QR del otpauth:// URL
+        otpauth_url = pyotp.totp.TOTP(totp_secret).provisioning_uri(
+            name=email,
+            issuer_name="OTP Auth System"
+        )
+
+        qr_dir = "static/qrs"
+        os.makedirs(qr_dir, exist_ok=True)
+
+        qr_path = f"{qr_dir}/{user_id}.png"
+        img = qrcode.make(otpauth_url)
+        img.save(qr_path)
+
+        return jsonify({
+            'user': response.data[0],
+            'qr_url': f"/api/users/{user_id}/qr",
+            'otpauth_url': otpauth_url
+        }), 201
+
     except Exception as e:
-        print(f"Error en add_device: {str(e)}")
         traceback.print_exc()
-        return jsonify({'error': 'Error al agregar dispositivo', 'details': str(e)}), 500
-
-
-@app.route('/api/devices/<device_id>', methods=['PUT'])
-def update_device(device_id):
-    """Actualizar dispositivo"""
-    try:
-        updates = request.json or {}
-
-        # No convertir a int, dejar como string por si es UUID
-        response = supabase.table('devices').update(updates).eq('id', device_id).execute()
-
-        if response.data:
-            return jsonify(response.data[0])
-
-        return jsonify({'error': 'Dispositivo no encontrado'}), 404
-    
-    except Exception as e:
-        print(f"Error en update_device: {str(e)}")
-        traceback.print_exc()
-        return jsonify({'error': 'Error al actualizar dispositivo', 'details': str(e)}), 500
-
-
-@app.route('/api/devices/<device_id>', methods=['DELETE'])
-def delete_device(device_id):
-    """Eliminar dispositivo"""
-    try:
-        # No convertir a int, dejar como string por si es UUID
-        supabase.table('devices').delete().eq('id', device_id).execute()
-        return jsonify({'success': True})
-    
-    except Exception as e:
-        print(f"Error en delete_device: {str(e)}")
-        traceback.print_exc()
-        return jsonify({'error': 'Error al eliminar dispositivo', 'details': str(e)}), 500
+        return jsonify({'error': 'Error al crear usuario', 'details': str(e)}), 500
 
 
 # -------------------------------------------------------------
-# VALIDACIÓN OTP
+# Obtener QR del usuario
 # -------------------------------------------------------------
 
-@app.route('/api/validate', methods=['POST'])
-def validate_otp():
-    """Validar OTP enviado por la app de escritorio"""
-    # Obtener IP real del cliente
-    ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+@app.route('/api/users/<user_id>/qr', methods=['GET'])
+def get_user_qr(user_id):
+    try:
+        qr_dir = os.path.join(app.root_path, "static/qrs")
+        return send_from_directory(qr_dir, f"{user_id}.png")
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': 'QR no encontrado'}), 404
+
+
+# -------------------------------------------------------------
+# VALIDAR TOTP
+# -------------------------------------------------------------
+
+@app.route('/api/validate_totp', methods=['POST'])
+def validate_totp():
+    """
+    Valida un OTP generado desde Google Authenticator.
+    """
     try:
         req = request.json or {}
 
-        pc_name = req.get('pc_name')
-        otp = req.get('otp')
+        user_id = req.get("user_id")
+        otp = req.get("otp")
 
-        print(f"Validación recibida - PC: {pc_name}, OTP: {otp}")
-
-        if not pc_name or not otp:
+        if not user_id or not otp:
             return jsonify({'valid': False, 'message': 'Faltan campos'}), 400
 
-        # Buscar dispositivo en Supabase por nombre
-        response = supabase.table('devices').select('*').eq('name', pc_name).limit(1).execute()
-        device_list = response.data or []
+        # Buscar usuario
+        response = supabase.table("users").select("*").eq("user_id", user_id).limit(1).execute()
+        users = response.data or []
 
-        print(f"Dispositivos encontrados: {len(device_list)}")
+        if not users:
+            return jsonify({'valid': False, 'message': 'Usuario no existe'}), 404
 
-        if not device_list:
-            print(f"Dispositivo no encontrado: {pc_name}")
-            # Registrar intento fallido
-            try:
-                supabase.table('logs').insert({
-                    'device_name': pc_name,
-                    'ip_address': ip_address,
-                    'action': 'Intento Fallido',
-                    'log_type': 'login'
-                }).execute()
-            except Exception as log_error:
-                print(f"Error al registrar log: {log_error}")
+        user = users[0]
+        totp_secret = user["totp_secret"]
 
-            return jsonify({'valid': False, 'message': 'Dispositivo no registrado'}), 401
+        totp = pyotp.TOTP(totp_secret)
 
-        device = device_list[0]
-        print(f"Dispositivo encontrado: {device.get('name')}, OTP esperado: {device.get('otp')}, Habilitado: {device.get('enabled')}")
-
-        # Validar OTP (convertir ambos a string para comparación)
-        if str(device.get('otp')) == str(otp) and device.get('enabled'):
-            print(f"✓ Autenticación exitosa para {pc_name}")
-            
-            # Registrar acceso exitoso
-            try:
-                supabase.table('logs').insert({
-                    'device_name': pc_name,
-                    'ip_address': ip_address,
-                    'action': 'Acceso Exitoso',
-                    'log_type': 'login'
-                }).execute()
-            except Exception as log_error:
-                print(f"Error al registrar log: {log_error}")
-
-            return jsonify({
-                'valid': True,
-                'device_id': device.get('id'),
-                'message': 'Autenticación exitosa'
-            })
-
-        print(f"✗ OTP inválido o dispositivo deshabilitado para {pc_name}")
-        
-        # Registrar intento fallido
-        try:
-            supabase.table('logs').insert({
-                'device_name': pc_name,
-                'ip_address': ip_address,
-                'action': 'Intento Fallido',
-                'log_type': 'login'
+        if totp.verify(str(otp)):
+            # Registrar login exitoso
+            supabase.table("logs").insert({
+                'user_id': user_id,
+                'action': 'Acceso Exitoso',
+                'log_type': 'totp_login',
+                'created_at': datetime.now().isoformat()
             }).execute()
-        except Exception as log_error:
-            print(f"Error al registrar log: {log_error}")
 
-        return jsonify({'valid': False, 'message': 'OTP inválido o dispositivo deshabilitado'}), 401
+            return jsonify({'valid': True, 'message': 'OTP válido'})
+
+        # Registrar intento fallido
+        supabase.table("logs").insert({
+            'user_id': user_id,
+            'action': 'Intento Fallido',
+            'log_type': 'totp_failed',
+            'created_at': datetime.now().isoformat()
+        }).execute()
+
+        return jsonify({'valid': False, 'message': 'OTP inválido'}), 401
 
     except Exception as e:
-        print(f"Error en validate_otp: {str(e)}")
         traceback.print_exc()
-        return jsonify({'error': 'Error en validación', 'details': str(e)}), 500
+        return jsonify({'error': 'Error al validar TOTP', 'details': str(e)}), 500
 
 
 # -------------------------------------------------------------
@@ -232,15 +181,25 @@ def validate_otp():
 
 @app.route('/api/logs', methods=['GET'])
 def get_logs():
-    """Obtener logs desde Supabase"""
     try:
         response = supabase.table('logs').select('*').order('created_at', desc=True).limit(100).execute()
         return jsonify({'logs': response.data})
-    
     except Exception as e:
-        print(f"Error en get_logs: {str(e)}")
         traceback.print_exc()
         return jsonify({'error': 'Error al obtener logs', 'details': str(e)}), 500
+
+
+# -------------------------------------------------------------
+# (Opcional) Devices antiguos mientras migras
+# -------------------------------------------------------------
+
+@app.route('/api/devices', methods=['GET'])
+def get_devices():
+    try:
+        response = supabase.table('devices').select('*').execute()
+        return jsonify({'devices': response.data})
+    except:
+        return jsonify({'devices': []})
 
 
 # -------------------------------------------------------------
@@ -250,8 +209,3 @@ def get_logs():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
-
-
-
-
