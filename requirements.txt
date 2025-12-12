@@ -4,3 +4,6 @@ supabase
 python-dotenv
 psycopg2-binary
 gunicorn
+pyotp
+qrcode
+pillow
