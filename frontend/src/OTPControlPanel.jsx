@@ -27,12 +27,17 @@ const OTPControlPanel = () => {
     try {
       const res = await fetch(`${API_URL}/devices`);
       const data = await res.json();
+  
+      const logRes = await fetch(`${API_URL}/logs?limit=20`);
+      const logs = await logRes.json();
+  
       setDevices(data.devices || []);
-      setAccessLogs(data.logs || []);
+      setAccessLogs(logs.logs || []);
     } catch (e) {
       console.error(e);
     }
   };
+
 
     const regenerateTOTP = async (userId) => {
     try {
@@ -337,4 +342,5 @@ const OTPControlPanel = () => {
 };
 
 export default OTPControlPanel;
+
 
