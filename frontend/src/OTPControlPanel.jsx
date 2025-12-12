@@ -16,6 +16,17 @@ const OTPControlPanel = () => {
     const interval = setInterval(loadAll, 5000);
     return () => clearInterval(interval);
   }, []);
+  const loadUsers = async () => {
+    try {
+      const res = await fetch(`${API_URL}/users`);
+      const data = await res.json();
+      console.log("USERS DATA:", data);
+      setUsers(data.users || []);
+    } catch (err) {
+      console.error("ERROR LOAD USERS:", err);
+    }
+  };
+
 
   const loadAll = async () => {
     try {
@@ -314,3 +325,4 @@ const OTPControlPanel = () => {
 };
 
 export default OTPControlPanel;
+
