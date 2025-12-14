@@ -215,18 +215,29 @@ export default function OtpControlPanel() {
             {users.length === 0 && <p>No hay usuarios registrados.</p>}
 
             <div className="grid gap-4">
-              {users.map(u => (
-                <div key={u.id} className="bg-white/10 p-4 rounded-xl border border-white/20">
-                  <h3 className="text-xl font-bold">{u.full_name}</h3>
-                  <p>ID: {u.user_id}</p>
-                  <p>Cédula: {u.cedula}</p>
-                  <p>Email: {u.email}</p>
-
-                  <button
-                    className="mt-3 bg-indigo-600 px-4 py-2 rounded font-bold"
-                    onClick={() => generarNuevoQR(u.user_id)}
-                  >
-                    Generar QR
+            
+            
+                {users.map(u => {
+                  const nextExpiry = u.date_totp
+                    ? new Date(new Date(u.date_totp).getTime() + 30 * 24 * 60 * 60 * 1000)
+                    : null;
+                
+                  return (
+                    <div key={u.id} className="bg-white/10 p-4 rounded-xl border border-white/20">
+                      <h3 className="text-xl font-bold">{u.full_name}</h3>
+                      <p>ID: {u.user_id}</p>
+                      <p>Cédula: {u.cedula}</p>
+                      <p>Email: {u.email}</p>
+                      <p>Estado: {u.status_user ? "Activo" : "Inactivo"}</p>
+                      {nextExpiry && (
+                        <p>Próximo vencimiento: {nextExpiry.toLocaleDateString()}</p>
+                      )}
+                
+                      <button
+                        className="mt-3 bg-indigo-600 px-4 py-2 rounded font-bold"
+                        onClick={() => generarNuevoQR(u.user_id)}
+                      >
+                        Generar QR
                   </button>
                 </div>
               ))}
