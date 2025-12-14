@@ -253,7 +253,7 @@ export default function OtpControlPanel() {
 				<div key={i} className="bg-white/10 p-4 rounded-xl border border-white/20 flex justify-between items-center">
 				  
 				  <div>
-					<h3 className="text-xl font-bold">{d.device_name || "Sin nombre"}</h3>
+					<h3 className="text-xl font-bold">{d.name || "Sin nombre"}</h3>
 					<p>Tipo: {d.device_type || "—"}</p>
 					<p>Estado: <span className={d.blocked ? "text-red-500 font-bold" : "text-green-500 font-bold"}>
 					  {d.blocked ? "Bloqueado" : "Activo"}
