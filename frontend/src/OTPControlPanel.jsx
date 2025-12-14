@@ -228,18 +228,43 @@ export default function OtpControlPanel() {
           </div>
         )}
 
-        {/* DISPOSITIVOS */}
-        {tab === "dispositivos" && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Dispositivos</h2>
-            {devices.length === 0 && <p>No hay dispositivos registrados.</p>}
-            {devices.map((d, i) => (
-              <pre key={i} className="bg-white/10 p-3 rounded text-sm">
-                {JSON.stringify(d, null, 2)}
-              </pre>
-            ))}
-          </div>
-        )}
+		{/* DISPOSITIVOS */}
+		{tab === "dispositivos" && (
+		  <div>
+			<h2 className="text-2xl font-bold mb-4">Dispositivos</h2>
+			{devices.length === 0 && <p>No hay dispositivos registrados.</p>}
+			
+			<div className="grid gap-4">
+			  {devices.map((d, i) => (
+				<div key={i} className="bg-white/10 p-4 rounded-xl border border-white/20 flex justify-between items-center">
+				  
+				  <div>
+					<h3 className="text-xl font-bold">{d.device_name || "Sin nombre"}</h3>
+					<p>Tipo: {d.device_type || "—"}</p>
+					<p>Estado: <span className={d.blocked ? "text-red-500 font-bold" : "text-green-500 font-bold"}>
+					  {d.blocked ? "Bloqueado" : "Activo"}
+					</span></p>
+					<p>Registrado: {new Date(d.created_at).toLocaleString()}</p>
+					<p>Último acceso: {d.last_access ? new Date(d.last_access).toLocaleString() : "—"}</p>
+				  </div>
+
+				  <div>
+					<button
+					  className={`px-4 py-2 rounded font-bold ${
+						d.blocked ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"
+					  }`}
+					  onClick={() => toggleDeviceBlock(d.id, !d.blocked)}
+					>
+					  {d.blocked ? "Desbloquear" : "Bloquear"}
+					</button>
+				  </div>
+
+				</div>
+			  ))}
+			</div>
+		  </div>
+		)}
+
 
         {/* LOGS */}
         {tab === "logs" && (
