@@ -232,7 +232,7 @@ export default function OtpControlPanel() {
         {tab === "dispositivos" && (
           <div>
             <h2 className="text-2xl font-bold mb-4">Dispositivos</h2>
-            {devices.length === 0 && <p>No hay dispositivos registrados.X</p>}
+            {devices.length === 0 && <p>No hay dispositivos registrados.</p>}
             {devices.map((d, i) => (
               <pre key={i} className="bg-white/10 p-3 rounded text-sm">
                 {JSON.stringify(d, null, 2)}
@@ -243,38 +243,52 @@ export default function OtpControlPanel() {
 
         {/* LOGS */}
         {tab === "logs" && (
-<table className="logs-table">
-  <thead>
-    <tr>
-      <th>Fecha</th>
-      <th>Dispositivo</th>
-      <th>Usuario</th>
-      <th>Acción</th>
-      <th>IP</th>
-      <th>Tipo</th>
-    </tr>
-  </thead>
-  <tbody>
-    {logs.map(log => (
-      <tr key={log.id}>
-        <td>{new Date(log.timestamp).toLocaleString()}</td>
-        <td>{log.device_name}</td>
-        <td>{log.user_id || '—'}</td>
-        <td>
-          <span className={`badge ${log.action}`}>
-            {log.action}
-          </span>
-        </td>
-        <td>{log.ip_address || '—'}</td>
-        <td>{log.log_type || '—'}</td>
-      </tr>
-   
-  </tbody>
-</table>
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Logs</h2>
 
-            ))}
+            {logs.length === 0 && <p>No hay logs registrados.</p>}
+
+            {logs.length > 0 && (
+              <table className="w-full text-sm bg-white/10 rounded-xl overflow-hidden">
+                <thead className="bg-black/30">
+                  <tr>
+                    <th className="p-2 text-left">Fecha</th>
+                    <th className="p-2 text-left">Dispositivo</th>
+                    <th className="p-2 text-left">Usuario</th>
+                    <th className="p-2 text-left">Acción</th>
+                    <th className="p-2 text-left">IP</th>
+                    <th className="p-2 text-left">Tipo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.map(log => (
+                    <tr key={log.id} className="border-t border-white/10">
+                      <td className="p-2">
+                        {new Date(log.timestamp).toLocaleString()}
+                      </td>
+                      <td className="p-2">{log.device_name || "—"}</td>
+                      <td className="p-2">{log.user_id || "—"}</td>
+                      <td className="p-2 font-bold">
+                        <span
+                          className={`px-2 py-1 rounded text-xs ${
+                            log.action === "Acceso Exitoso"
+                              ? "bg-green-600"
+                              : "bg-red-600"
+                          }`}
+                        >
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="p-2">{log.ip_address || "—"}</td>
+                      <td className="p-2">{log.log_type || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
+
 
       </div>
     </div>
