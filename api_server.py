@@ -5,13 +5,16 @@ Desplegado en Render
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from datetime import datetime
 from supabase import create_client, Client
 import os
 import traceback
 import pyotp
 import qrcode
 import qrcode.image.svg
+import pyotp
+from datetime import datetime, timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
+
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
@@ -25,6 +28,39 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+
+# -------------------------------------------------------------
+# FUNCIONES INTERNAS
+# -------------------------------------------------------------
+
+def refresh_totp_secrets():
+    try:
+        limite = datetime.now() - timedelta(days=30)
+        response = supabase.table("users").select("*").neq("status_user", False).execute()
+        users = response.data or []
+
+        for user in users:
+            date_totp = user.get("date_totp")
+            if date_totp:
+                date_totp_dt = datetime.fromisoformat(date_totp)
+            else:
+                date_totp_dt = datetime.min
+
+            if date_totp_dt <= limite:
+                new_secret = pyotp.random_base32()
+                now_str = datetime.now().isoformat()
+
+                supabase.table("users").update({
+                    "totp_secret": new_secret,
+                    "date_totp": now_str
+                }).eq("user_id", user["user_id"]).execute()
+
+                print(f"Se actualizó TOTP para usuario {user['user_id']}")
+
+        print("Proceso de actualización de TOTP completado.")
+    except Exception as e:
+        traceback.print_exc()
+        print("Error en la actualización de TOTP:", e)
 
 # -------------------------------------------------------------
 # HOME
@@ -182,6 +218,8 @@ def validate_totp():
         return jsonify({'error': 'Error al validar TOTP', 'details': str(e)}), 500
 
 
+
+
 # -------------------------------------------------------------
 # LOGS
 # -------------------------------------------------------------
@@ -223,10 +261,25 @@ def get_devices():
     except:
         return jsonify({'devices': []})
 
+# -------------------------------------------------------------
+# Scheduler automático
+# -------------------------------------------------------------
+scheduler = BackgroundScheduler()
+scheduler.add_job(refresh_totp_secrets, 'interval', hours=24, next_run_time=datetime.now())  # Ejecuta al iniciar y cada 24h
+scheduler.start()
 
 # -------------------------------------------------------------
 # RUN
 # -------------------------------------------------------------
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
+
+# -------------------------------------------------------------
+# RUN
+# -------------------------------------------------------------
+
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
