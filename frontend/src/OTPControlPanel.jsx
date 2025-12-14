@@ -55,6 +55,20 @@ export default function OtpControlPanel() {
       setLoading(false);
     }
   }
+  async function toggleDeviceBlock(deviceId, block) {
+  try {
+    setLoading(true);
+    await axios.post(`${API}/devices/${deviceId}/block`, { blocked: block });
+    // Actualizar lista de dispositivos después de bloquear/desbloquear
+    fetchDevices();
+  } catch (e) {
+    alert("No se pudo cambiar el estado del dispositivo");
+    console.error(e);
+  } finally {
+    setLoading(false);
+  }
+}
+
 
   async function fetchDevices() {
     try {
