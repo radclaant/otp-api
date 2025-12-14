@@ -268,7 +268,7 @@ export default function OtpControlPanel() {
         <td>{log.ip_address || '—'}</td>
         <td>{log.log_type || '—'}</td>
       </tr>
-    ))}
+   
   </tbody>
 </table>
 
