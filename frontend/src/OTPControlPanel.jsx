@@ -243,13 +243,35 @@ export default function OtpControlPanel() {
 
         {/* LOGS */}
         {tab === "logs" && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Logs</h2>
-            {logs.length === 0 && <p>No hay logs.</p>}
-            {logs.map((l, i) => (
-              <div key={i} className="bg-white/10 p-3 rounded text-sm mb-2">
-                {l.created_at} | {l.user_id} | {l.action}
-              </div>
+<table className="logs-table">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Dispositivo</th>
+      <th>Usuario</th>
+      <th>Acción</th>
+      <th>IP</th>
+      <th>Tipo</th>
+    </tr>
+  </thead>
+  <tbody>
+    {logs.map(log => (
+      <tr key={log.id}>
+        <td>{new Date(log.timestamp).toLocaleString()}</td>
+        <td>{log.device_name}</td>
+        <td>{log.user_id || '—'}</td>
+        <td>
+          <span className={`badge ${log.action}`}>
+            {log.action}
+          </span>
+        </td>
+        <td>{log.ip_address || '—'}</td>
+        <td>{log.log_type || '—'}</td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
             ))}
           </div>
         )}
