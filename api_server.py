@@ -189,16 +189,26 @@ def validate_totp():
 @app.route('/api/logs', methods=['GET'])
 def get_logs():
     try:
-        const { data, error } = await supabase
-             .from('logs')
-                .select('*')
-                .order('timestamp', { ascending: false })
-                .limit(100);
+        response = (
+            supabase
+            .table('logs')
+            .select('*')
+            .order('timestamp', desc=True)
+            .limit(100)
+            .execute()
+        )
 
-        return jsonify({'logs': response.data})
+        return jsonify({
+            'logs': response.data or []
+        }), 200
+
     except Exception as e:
         traceback.print_exc()
-        return jsonify({'error': 'Error al obtener logs', 'details': str(e)}), 500
+        return jsonify({
+            'error': 'Error al obtener logs',
+            'details': str(e)
+        }), 500
+
 
 
 # -------------------------------------------------------------
