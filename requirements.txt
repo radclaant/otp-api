@@ -7,3 +7,4 @@ gunicorn
 pyotp
 qrcode
 pillow
+APScheduler==3.12.0
