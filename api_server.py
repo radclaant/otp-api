@@ -165,26 +165,45 @@ def get_users():
 # -------------------------------------------------------------
 # Obtener QR del usuario
 # -------------------------------------------------------------
-@app.route('/api/users/<user_id>/qr', methods=['GET'])
+
+@app.route("/api/users/<user_id>/qr", methods=["GET"])
 def get_user_qr(user_id):
     try:
-        qr_path = os.path.join('static', 'qrs', f'{user_id}.png')
-
-        if not os.path.exists(qr_path):
-            return jsonify({'error': 'QR no encontrado'}), 404
-
-        return send_file(
-            qr_path,
-            mimetype='image/png',
-            as_attachment=False
+        # Buscar usuario
+        response = supabase.table("users").select("*").eq("user_id", user_id).limit(1).execute()
+        users = response.data or []
+        
+        if not users:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        user = users[0]
+        totp_secret = user.get("totp_secret")
+        email = user.get("email")
+        
+        if not totp_secret:
+            return jsonify({'error': 'Usuario no tiene secreto TOTP'}), 400
+        
+        # Generar QR desde el secreto existente
+        otpauth_url = pyotp.totp.TOTP(totp_secret).provisioning_uri(
+            name=email,
+            issuer_name="OTP Auth System"
         )
-
+        
+        # Crear directorio si no existe
+        qr_dir = "static/qrs"
+        os.makedirs(qr_dir, exist_ok=True)
+        
+        # Generar QR
+        qr_path = f"{qr_dir}/{user_id}.png"
+        img = qrcode.make(otpauth_url)
+        img.save(qr_path)
+        
+        # Enviar imagen
+        return send_from_directory(qr_dir, f"{user_id}.png", mimetype='image/png')
+        
     except Exception as e:
         traceback.print_exc()
-        return jsonify({
-            'error': 'Error obteniendo QR',
-            'details': str(e)
-        }), 500
+        return jsonify({'error': 'Error generando QR', 'details': str(e)}), 500
 
 # -------------------------------------------------------------
 # VALIDAR TOTP
