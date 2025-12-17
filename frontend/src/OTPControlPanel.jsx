@@ -208,50 +208,59 @@ export default function OtpControlPanel() {
         )}
 
         {/* USUARIOS */}
-        {tab === "usuarios" && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Usuarios</h2>
-
-            {users.length === 0 && <p>No hay usuarios registrados.</p>}
-
-            <div className="grid gap-4">
+            {tab === "usuarios" && (
+              <div>
+                <h2 className="text-2xl font-bold mb-4">Usuarios</h2>
             
+                {users.length === 0 && <p>No hay usuarios registrados.</p>}
             
-                {users.map(u => {
-                  const nextExpiry = u.date_totp
-                    ? new Date(new Date(u.date_totp).getTime() + 30 * 24 * 60 * 60 * 1000)
-                    : null;
-                
-                  return (
-                    <div key={u.id} className="bg-white/10 p-4 rounded-xl border border-white/20">
-                      <h3 className="text-xl font-bold">{u.full_name}</h3>
-                      <p>ID: {u.user_id}</p>
-                      <p>Cédula: {u.cedula}</p>
-                      <p>Email: {u.email}</p>
-                      <p>Estado: {u.status_user ? "Activo" : "Inactivo"}</p>
-                      {nextExpiry && (
-                        <p>Próximo vencimiento: {nextExpiry.toLocaleDateString()}</p>
-                      )}
-                
-                      <button
-                        className="mt-3 bg-indigo-600 px-4 py-2 rounded font-bold"
-                        onClick={() => generarNuevoQR(u.user_id)}
+                <div className="grid gap-4">
+                  {users.map(u => {
+                    const nextExpiry = u.date_totp
+                      ? new Date(
+                          new Date(u.date_totp).getTime() +
+                          30 * 24 * 60 * 60 * 1000
+                        )
+                      : null;
+            
+                    return (
+                      <div
+                        key={u.id}
+                        className="bg-white/10 p-4 rounded-xl border border-white/20"
                       >
-                        Generar QR
-                  </button>
+                        <h3 className="text-xl font-bold">{u.full_name}</h3>
+                        <p>ID: {u.user_id}</p>
+                        <p>Cédula: {u.cedula}</p>
+                        <p>Email: {u.email}</p>
+                        <p>Estado: {u.status_user ? "Activo" : "Inactivo"}</p>
+            
+                        {nextExpiry && (
+                          <p>
+                            Próximo vencimiento:{" "}
+                            {nextExpiry.toLocaleDateString()}
+                          </p>
+                        )}
+            
+                        <button
+                          className="mt-3 bg-indigo-600 px-4 py-2 rounded font-bold"
+                          onClick={() => generarNuevoQR(u.user_id)}
+                        >
+                          Generar QR
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-              
-            </div>
-
-            {loadingQR && <p className="mt-4">Generando QR…</p>}
-
-            {qrImage && (
-              <div className="mt-6 text-center">
-                <img src={qrImage} alt="QR" className="w-64 mx-auto" />
+            
+                {loadingQR && <p className="mt-4">Generando QR…</p>}
+            
+                {qrImage && (
+                  <div className="mt-6 text-center">
+                    <img src={qrImage} alt="QR" className="w-64 mx-auto" />
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
 		{/* DISPOSITIVOS */}
 		{tab === "dispositivos" && (
