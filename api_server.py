@@ -211,58 +211,99 @@ def get_user_qr(user_id):
 
 @app.route('/api/validate_totp', methods=['POST'])
 def validate_totp():
-    """
-    Valida un OTP generado desde Google Authenticator.
-    """
     try:
         req = request.json or {}
 
-        user_id = req.get("user_id")
+        user_id = req.get("user_id") or req.get("username")
         otp = req.get("otp")
+        device_name = req.get("pc_name")
+        ip_address = request.remote_addr
 
-        if not user_id or not otp:
-            return jsonify({'valid': False, 'message': 'Faltan campos'}), 400
+        if not user_id or not otp or not device_name:
+            return jsonify({
+                'valid': False,
+                'message': 'Faltan campos obligatorios'
+            }), 400
 
-        # Buscar usuario
-        response = supabase.table("users").select("*").eq("user_id", user_id).limit(1).execute()
+        # ----------------------------
+        # Verificar usuario
+        # ----------------------------
+        response = (
+            supabase
+            .table("users")
+            .select("*")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+
         users = response.data or []
-
         if not users:
             return jsonify({'valid': False, 'message': 'Usuario no existe'}), 404
 
         user = users[0]
-        totp_secret = user["totp_secret"]
+        totp = pyotp.TOTP(user["totp_secret"])
 
-        totp = pyotp.TOTP(totp_secret)
+        # ----------------------------
+        # Verificar / crear dispositivo
+        # ----------------------------
+        device = (
+            supabase
+            .table("devices")
+            .select("*")
+            .eq("name", device_name)
+            .limit(1)
+            .execute()
+            .data
+        )
 
+        if not device:
+            supabase.table("devices").insert({
+                "name": device_name,
+                "otp": otp,
+                "ip_address": ip_address,
+                "last_used": datetime.now().isoformat()
+            }).execute()
+        else:
+            supabase.table("devices").update({
+                "last_used": datetime.now().isoformat(),
+                "ip_address": ip_address
+            }).eq("name", device_name).execute()
+
+        # ----------------------------
+        # Validar OTP
+        # ----------------------------
         if totp.verify(str(otp)):
-            # Registrar login exitoso
             supabase.table("logs").insert({
-                'user_id': user_id,
-                'action': 'Acceso Exitoso',
-                'log_type': 'totp_login',
-                'timestamp': datetime.now().isoformat()
+                "user_id": user_id,
+                "device_name": device_name,
+                "action": "Acceso Exitoso",
+                "log_type": "totp_login",
+                "ip_address": ip_address
             }).execute()
 
-            return jsonify({'valid': True, 'message': 'OTP válido'})
+            return jsonify({'valid': True, 'message': 'OTP válido'}), 200
 
-        # Registrar intento fallido
-        
+        # ----------------------------
+        # OTP inválido
+        # ----------------------------
         supabase.table("logs").insert({
-            'user_id': user_id,
-            'action': 'Intento Fallido',
-            'log_type': 'totp_failed',
-            'timestamp': datetime.now().isoformat()
+            "user_id": user_id,
+            "device_name": device_name,
+            "action": "Intento Fallido",
+            "log_type": "totp_failed",
+            "ip_address": ip_address
         }).execute()
 
         return jsonify({'valid': False, 'message': 'OTP inválido'}), 401
 
     except Exception as e:
         traceback.print_exc()
-        return jsonify({'error': 'Error al validar TOTP', 'details': str(e)}), 500
-
-
-
+        return jsonify({
+            'valid': False,
+            'error': 'Error al validar TOTP',
+            'details': str(e)
+        }), 500
 
 # -------------------------------------------------------------
 # LOGS
@@ -328,4 +369,5 @@ if __name__ == '__main__':
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
