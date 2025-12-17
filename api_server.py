@@ -241,7 +241,7 @@ def validate_totp():
                 'user_id': user_id,
                 'action': 'Acceso Exitoso',
                 'log_type': 'totp_login',
-                'created_at': datetime.now().isoformat()
+                'timestamp': datetime.now().isoformat()
             }).execute()
 
             return jsonify({'valid': True, 'message': 'OTP válido'})
@@ -251,7 +251,7 @@ def validate_totp():
             'user_id': user_id,
             'action': 'Intento Fallido',
             'log_type': 'totp_failed',
-            'created_at': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat()
         }).execute()
 
         return jsonify({'valid': False, 'message': 'OTP inválido'}), 401
