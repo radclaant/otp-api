@@ -247,6 +247,7 @@ def validate_totp():
             return jsonify({'valid': True, 'message': 'OTP válido'})
 
         # Registrar intento fallido
+        
         supabase.table("logs").insert({
             'user_id': user_id,
             'action': 'Intento Fallido',
