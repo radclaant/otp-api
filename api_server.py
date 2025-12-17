@@ -5,6 +5,7 @@ Desplegado en Render
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from flask import send_file
 from supabase import create_client, Client
 import os
 import traceback
@@ -161,6 +162,29 @@ def get_users():
             "message": "Error consultando usuarios"
         }), 500
 
+# -------------------------------------------------------------
+# Obtener QR del usuario
+# -------------------------------------------------------------
+@app.route('/api/users/<user_id>/qr', methods=['GET'])
+def get_user_qr(user_id):
+    try:
+        qr_path = os.path.join('static', 'qrs', f'{user_id}.png')
+
+        if not os.path.exists(qr_path):
+            return jsonify({'error': 'QR no encontrado'}), 404
+
+        return send_file(
+            qr_path,
+            mimetype='image/png',
+            as_attachment=False
+        )
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({
+            'error': 'Error obteniendo QR',
+            'details': str(e)
+        }), 500
 
 # -------------------------------------------------------------
 # VALIDAR TOTP
