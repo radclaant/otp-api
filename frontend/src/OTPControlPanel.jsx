@@ -240,7 +240,7 @@ export default function OtpControlPanel() {
                         Generar QR
                   </button>
                 </div>
-              ))}
+              
             </div>
 
             {loadingQR && <p className="mt-4">Generando QR…</p>}
