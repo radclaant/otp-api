@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import OTPControlPanel from './OtpControlPanel';
+import OTPControlPanel from './OTPControlPanel';
 import './App.css';
 
 function App() {
