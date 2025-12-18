@@ -16,7 +16,8 @@ export default function OtpControlPanel() {
   const [cedula, setCedula] = useState("");
   const [userID, setUserID] = useState("");
 
-  useEffect(() => {
+useEffect(() => {
+    console.log("Cambiando a pestaña:", tab); // Esto te dirá si el componente reacciona
     setError("");
     if (tab === "usuarios") fetchUsers();
     if (tab === "dispositivos") fetchDevices();
@@ -378,5 +379,6 @@ export default function OtpControlPanel() {
     </div>
   );
 }
+
 
 
