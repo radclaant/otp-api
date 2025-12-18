@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-export default function OTPControlPanel() {
+export default function OtpControlPanel() {
   const API = "https://otp-api-kf7h.onrender.com/api";
 
   const [tab, setTab] = useState("registro");
@@ -378,4 +378,5 @@ export default function OTPControlPanel() {
     </div>
   );
 }
+
 
