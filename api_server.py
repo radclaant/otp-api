@@ -2,15 +2,16 @@
 API OTP con doble validación: Usuario + Dispositivo
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
 import os
 import traceback
 import pyotp
+import qrcode
 from datetime import datetime
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 CORS(app)
 
 # Configuración Supabase
@@ -325,6 +326,104 @@ def get_users():
         }), 500
 
 
+@app.route('/api/users', methods=['POST'])
+def create_user():
+    """Crear nuevo usuario con TOTP"""
+    try:
+        data = request.json or {}
+
+        user_id = data.get("user_id")
+        full_name = data.get("full_name")
+        email = data.get("email")
+        cedula = data.get("cedula")
+
+        if not user_id or not full_name or not email or not cedula:
+            return jsonify({'error': 'Faltan datos obligatorios'}), 400
+
+        # Generar secreto TOTP Base32
+        totp_secret = pyotp.random_base32()
+
+        user_data = {
+            "user_id": user_id,
+            "full_name": full_name,
+            "email": email,
+            "cedula": cedula,
+            "totp_secret": totp_secret,
+            "created_at": datetime.now().isoformat(),
+            "date_totp": datetime.now().isoformat(),
+            "status_user": True
+        }
+
+        response = supabase.table('users').insert(user_data).execute()
+
+        if not response.data:
+            return jsonify({'error': 'No se pudo insertar usuario'}), 500
+
+        # Crear QR del otpauth:// URL
+        otpauth_url = pyotp.totp.TOTP(totp_secret).provisioning_uri(
+            name=email,
+            issuer_name="OTP Auth System"
+        )
+
+        qr_dir = "static/qrs"
+        os.makedirs(qr_dir, exist_ok=True)
+
+        qr_path = f"{qr_dir}/{user_id}.png"
+        img = qrcode.make(otpauth_url)
+        img.save(qr_path)
+
+        return jsonify({
+            'user': response.data[0],
+            'qr_url': f"/api/users/{user_id}/qr",
+            'otpauth_url': otpauth_url
+        }), 201
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': 'Error al crear usuario', 'details': str(e)}), 500
+
+
+@app.route("/api/users/<user_id>/qr", methods=["GET"])
+def get_user_qr(user_id):
+    """Obtener código QR del usuario para Google Authenticator"""
+    try:
+        # Buscar usuario
+        response = supabase.table("users").select("*").eq("user_id", user_id).limit(1).execute()
+        users = response.data or []
+        
+        if not users:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        user = users[0]
+        totp_secret = user.get("totp_secret")
+        email = user.get("email")
+        
+        if not totp_secret:
+            return jsonify({'error': 'Usuario no tiene secreto TOTP'}), 400
+        
+        # Generar QR desde el secreto existente
+        otpauth_url = pyotp.totp.TOTP(totp_secret).provisioning_uri(
+            name=email,
+            issuer_name="OTP Auth System"
+        )
+        
+        # Crear directorio si no existe
+        qr_dir = "static/qrs"
+        os.makedirs(qr_dir, exist_ok=True)
+        
+        # Generar QR
+        qr_path = f"{qr_dir}/{user_id}.png"
+        img = qrcode.make(otpauth_url)
+        img.save(qr_path)
+        
+        # Enviar imagen
+        return send_from_directory(qr_dir, f"{user_id}.png", mimetype='image/png')
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': 'Error generando QR', 'details': str(e)}), 500
+
+
 @app.route('/api/devices/<device_name>/status', methods=['GET'])
 def check_device_status(device_name):
     """Verificar si un dispositivo está autorizado"""
@@ -425,6 +524,52 @@ def home():
         'security': 'Dual Layer (User + Device)',
         'status': 'online'
     })
+
+
+# ============================================
+# FUNCIONES DE MANTENIMIENTO
+# ============================================
+
+def refresh_totp_secrets():
+    """Refrescar secretos TOTP que tengan más de 30 días"""
+    try:
+        from datetime import timedelta
+        
+        limite = datetime.now() - timedelta(days=30)
+        response = supabase.table("users").select("*").neq("status_user", False).execute()
+        users = response.data or []
+
+        for user in users:
+            date_totp = user.get("date_totp")
+            if date_totp:
+                date_totp_dt = datetime.fromisoformat(date_totp)
+            else:
+                date_totp_dt = datetime.min
+
+            if date_totp_dt <= limite:
+                new_secret = pyotp.random_base32()
+                now_str = datetime.now().isoformat()
+
+                supabase.table("users").update({
+                    "totp_secret": new_secret,
+                    "date_totp": now_str
+                }).eq("user_id", user["user_id"]).execute()
+
+                print(f"🔄 TOTP actualizado para usuario {user['user_id']}")
+
+        print("✅ Proceso de actualización de TOTP completado")
+    except Exception as e:
+        traceback.print_exc()
+        print(f"❌ Error en actualización de TOTP: {e}")
+
+
+# ============================================
+# SCHEDULER (opcional - comentado por defecto)
+# ============================================
+# from apscheduler.schedulers.background import BackgroundScheduler
+# scheduler = BackgroundScheduler()
+# scheduler.add_job(refresh_totp_secrets, 'interval', hours=24, next_run_time=datetime.now())
+# scheduler.start()
 
 
 if __name__ == '__main__':
