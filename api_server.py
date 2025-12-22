@@ -114,7 +114,7 @@ def validate_totp():
             # Actualizar dispositivo
             supabase.table("devices").update({
                 "last_used": datetime.now().isoformat(),
-                "ip_address": request.remote_addr
+                "ip_address": get_client_ip()
             }).eq("name", device_name).execute()
             
             _log_attempt(user_id, device_name, "Acceso exitoso", "login_success")
@@ -141,6 +141,12 @@ def validate_totp():
         return jsonify({'valid': False, 'error': str(e)}), 500
 
 
+def get_client_ip():
+    """Obtiene la IP real del cliente incluso detrás de Render/Cloudflare"""
+    if request.headers.get('X-Forwarded-For'):
+        # El primer elemento de la lista es la IP original del cliente
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    return request.remote_addr
 def _log_attempt(user_id, device_name, action, log_type):
     """Registra intento de autenticación"""
     try:
@@ -150,7 +156,7 @@ def _log_attempt(user_id, device_name, action, log_type):
             'action': action,
             'log_type': log_type,
             'timestamp': datetime.now().isoformat(),
-            'ip_address': request.remote_addr
+            'ip_address': get_client_ip()
         }).execute()
     except Exception as e:
         print(f"⚠️  Error log: {e}")
@@ -485,3 +491,4 @@ def refresh_totp_secrets():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
