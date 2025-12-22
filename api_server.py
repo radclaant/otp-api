@@ -450,6 +450,34 @@ def get_logs():
     except Exception as e:
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+@app.route('/api/log_activity', methods=['POST'])
+def log_activity():
+    try:
+        data = request.json
+        user_id = data.get("user_id")
+        device_name = data.get("device_name")
+        action = data.get("action", "Actividad detectada")
+        ip = data.get("ip_address") or request.remote_addr
+
+        # Insertamos directamente en la tabla de logs de Supabase
+        supabase.table("logs").insert({
+            'user_id': user_id,
+            'device_name': device_name,
+            'action': action,
+            'log_type': 'session_resume',
+            'timestamp': datetime.now().isoformat(),
+            'ip_address': ip
+        }).execute()
+
+        # También actualizamos la "última vez usado" del dispositivo
+        supabase.table("devices").update({
+            "last_used": datetime.now().isoformat(),
+            "ip_address": ip
+        }).eq("name", device_name).execute()
+
+        return jsonify({'status': 'logged'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # ============================================
@@ -491,4 +519,5 @@ def refresh_totp_secrets():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
